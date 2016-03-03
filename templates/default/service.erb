@@ -1,0 +1,58 @@
+#!/bin/bash
+# chkconfig: - 85 15
+# processname: apache-<%=@instance_name%>
+# config: <%=node['apache']['base_dir']%>/apache/httpd/conf/httpd-<%=@instance_name%>.conf
+# pidfile: <%=@base_dir%>/apache/httpd/logs/<%=@instance_name%>.pid
+# description: Script to Start Stop Restart Apache Http Server
+# Source function library.
+if [ -f /etc/rc.d/init.d/functions ]; then
+    . /etc/rc.d/init.d/functions
+fi
+
+PID_FILE="<%=@base_dir%>/apache/httpd/logs/<%=@instance_name%>.pid"
+
+if [ -f /etc/sysconfig/apache-<%=@instance_name%> ]; then
+    . /etc/sysconfig/apache-<%=@instance_name%>
+fi
+APACHE_CMD=<%=node['apache']['base_dir']%>/apache/httpd/bin/apachectl
+export LD_LIBRARY_PATH=<%=node['apache']['base_dir']%>/openssl/lib/
+start(){
+	echo -n $"Starting Apache service: "
+	daemon $APACHE_CMD -f <%=node['apache']['base_dir']%>/apache/httpd/conf/httpd-<%=@instance_name%>.conf -k start
+	RETVAL=$?
+	echo
+}
+stop(){
+        action $"Stopping Apache service: " $APACHE_CMD -f <%=node['apache']['base_dir']%>/apache/httpd/conf/httpd-<%=@instance_name%>.conf -k stop
+	RETVAL=$?
+	echo
+}
+restart(){
+        action $"Restart Apache service: " $APACHE_CMD -f <%=node['apache']['base_dir']%>/apache/httpd/conf/httpd-<%=@instance_name%>.conf -k restart
+	RETVAL=$?
+	echo
+}
+# See how we were called.
+case "$1" in
+  start)
+	start
+  wait
+  chmod -R g-w,o-rwx <%=node['apache']['logs']%>/apache
+	;;
+  stop)
+	stop
+	;;
+  restart)
+	restart
+  wait
+  chmod -R g-w,o-rwx <%=node['apache']['logs']%>/apache
+	;;
+  status)
+  status -p $PID_FILE
+  rc=$?; if [[ $rc != 0 ]]; then exit $rc; fi
+  ;;
+  *)
+	echo $"Usage: $0 { start|stop|restart|status }"
+	 RETVAL=2
+esac
+exit $RETVAL

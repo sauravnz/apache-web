@@ -1,0 +1,68 @@
+---
+driver:
+  name: openstack
+
+provisioner:
+  name: chef_zero
+  chef_omnibus_url: <%= ENV['CHEF_OMNIBUS_URL'] %>
+  require_chef_omnibus: <%= ENV['CHEF_OMNIBUS_VER'] %>
+  client_rb:
+    #https_proxy: <%= ENV['HTTPS_PROXY'] %>
+    #http_proxy: <%= ENV['HTTP_PROXY'] %>
+    no_proxy: <%= ENV['NO_PROXY'] %>
+
+platforms:
+  -
+    driver_config:
+      openstack_username: <%= ENV['OS_USERNAME'] %>
+      openstack_api_key: <%= ENV['OS_PASSWORD'] %>
+      openstack_auth_url: <%= ENV['OS_AUTH_URL'] %>/tokens
+      key_name: <%= ENV['KEY_NAME'] %>
+      openstack_tenant: <%= ENV['OS_TENANT_NAME'] %>
+      floating_ip_pool: <%= ENV['FLOATING_IP_POOL'] %>
+      private_key_path: <%= ENV['SSH_KEY_FILE'] %>
+      image_ref: <%= ENV['OS_IMAGE_REF'] %>
+      flavor_ref: <%= ENV['OS_FLAVOR_REF'] %>
+      network_ref: <%= ENV['OS_NETWORK_REF'] %>
+      username: <%= ENV['OS_IMAGE_USER'] %>
+    name: <%= ENV['OS_PLATFORM_NAME'] %>
+    driver_plugin: openstack
+
+suites:
+  - name: apache
+    run_list:
+    run_list:
+      - recipe[fake::default]
+      - recipe[fake::proxy_setup]
+    attributes:
+      apache:
+        instance_name: target
+        context_path_name: ["tgt"]
+        context_path: "sample"
+        proxypass_url: "http://localhost:8080/sample/"
+        workers:
+          worker01:
+            apache_instance: target
+            host: localhost
+            instance: tomcat01
+            jvm_route_svr: rant
+            port: 8006
+            dc_identifier: TTCE
+      target_app:
+        volumes:
+          vol_apps_install:
+            size: 1G
+            mount: /apps/install
+            group: rootvg
+            filesystem: ext4
+          vol_apps_tmp:
+            size: 1G
+            mount: /apps/tmp
+            group: rootvg
+            filesystem: ext4
+          vol_apps_logs:
+            size: 1G
+            mount: /apps/logs
+            group: rootvg
+            filesystem: ext4
+        tgt_local_env: true

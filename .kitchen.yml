@@ -1,0 +1,119 @@
+---
+driver:
+  name: vagrant
+  customize:
+          memory: 1024
+          cpus: 1
+  log_level: info
+
+provisioner:
+  name: chef_zero
+  chef_omnibus_url: <%= ENV['CHEF_OMNIBUS_URL'] %>
+  require_chef_omnibus: <%= ENV['CHEF_OMNIBUS_VER'] %>
+  client_rb:
+    no_proxy: <%= ENV['NO_PROXY'] %>
+
+platforms:
+  -
+    driver_config:
+      box: <%= ENV['VAGRANT_BOX_NAME'] %>
+      box_url: <%= ENV['VAGRANT_BOX_URL'] %>
+      require_chef_omnibus: <%= ENV['CHEF_OMNIBUS_VER'] %>
+      chef_omnibus_url: <%= ENV['CHEF_OMNIBUS_URL'] %>
+    name: <%= ENV['VAGRANT_PLATFORM_NAME'] %>
+    driver_plugin: vagrant
+
+suites:
+  - name: apache-proxy
+    run_list:
+      - recipe[fake::_storage]
+      - recipe[fake::tomcat_base]
+      - recipe[fake::tomcat_instance]
+      - recipe[fake::base_install]
+      - recipe[fake::proxy_setup]
+    driver:
+      vm_hostname: apache
+      network:
+      - ["private_network", {ip: "192.168.237.17"}]
+    attributes:
+      apache:
+        instance_name: target
+        context_path: "sample"
+      target_app:
+        volumes:
+          vol_apps_install:
+            size: 1G
+            mount: /apps/install
+            group: rootvg
+            filesystem: ext4
+          vol_apps_tmp:
+            size: 1G
+            mount: /apps/tmp
+            group: rootvg
+            filesystem: ext4
+          vol_apps_logs:
+            size: 1G
+            mount: /apps/logs
+            group: rootvg
+            filesystem: ext4
+          vol_apps_tomcat:
+            size: 1G
+            mount: /apps/tomcat
+            group: rootvg
+            filesystem: ext4
+      tgt_local_env: true
+      tomcat_tgtcfg:
+        app_name: "sample"
+        war_file: "sample.war"
+
+  - name: apache-modjk
+    run_list:
+      - recipe[fake::_storage]
+      - recipe[fake::base_install]
+      - recipe[fake::modjk_setup]
+    driver:
+        vm_hostname: apache-modjk
+        network:
+        - ["private_network", {ip: "192.168.237.18"}]
+    attributes:
+      apache:
+        instance_name: target
+        context_path_name: ["sample"]
+        workers:
+          worker01:
+            apache_instance: target
+            host: 192.168.237.19
+            instance: tomcat01
+            jvm_route_svr: rant
+            port: 8006
+            dc_identifier: TTCE
+      target_app:
+        volumes:
+          vol_apps_install:
+            size: 1G
+            mount: /apps/install
+            group: rootvg
+            filesystem: ext4
+          vol_apps_tmp:
+            size: 1G
+            mount: /apps/tmp
+            group: rootvg
+            filesystem: ext4
+          vol_apps_logs:
+            size: 1G
+            mount: /apps/logs
+            group: rootvg
+            filesystem: ext4
+      tgt_local_env: true
+
+  - name: tomcat
+    run_list:
+      - recipe[fake::_storage]
+      - recipe[fake::tomcat_base]
+      - recipe[fake::tomcat_instance]
+    driver:
+        vm_hostname: tomcat
+        network:
+        - ["private_network", {ip: "192.168.237.19"}]
+    attributes:
+      tgt_local_env: true

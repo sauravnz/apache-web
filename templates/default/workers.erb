@@ -1,0 +1,79 @@
+#A comma separated list of workers names that the JK will use.
+worker.list=loadbalancer,status
+
+#Template for the nodes
+#Type of the worker (can be one of ajp13, ajp14, jni, lb or status).
+worker.nodetemplate.type=ajp13
+
+#The integer number lbfactor (load-balancing factor) is how much we expect this worker to work, or the worker's work quota.
+worker.nodetemplate.lbfactor=1
+
+#Socket connect timeout in milliseconds used for the communication channel between JK and remote host. If the remote host does not respond inside the timeout specified,
+#JK will generate an error, and retry again.
+worker.nodetemplate.socket_connect_timeout=100
+
+#This directive should be used when you have a firewall between your webserver and the Tomcat engine, who tend to drop inactive connections. This flag will tell the Operating System to send KEEP_ALIVE messages on
+#inactive connections (interval depend on global OS settings, generally 120 minutes), and thus prevent the firewall to cut inactive connections.
+#To enable keepalive set this property value to True.
+worker.nodetemplate.socket_keepalive=True
+
+#This flag determines, under which conditions established connections are probed to ensure they are still working.
+#The probe is done with an empty AJP13 packet (CPing) and expects to receive an appropriate answer (CPong) within some timeout.
+worker.nodetemplate.ping_mode=A
+
+#Timeout in milliseconds used when waiting for the CPong answer of a CPing connection probe. The activation of the probes is done via ping_mode. The timeouts for ping_mode connect and prepost can be
+#overwritten individually via connect_timeout and prepost_timeout.
+worker.nodetemplate.ping_timeout=100
+
+#This defines the number of connections made to the AJP backend that are maintained as a connection pool.
+worker.nodetemplate.connection_pool_size=35
+#Keep this value same as connectionTimeout attribute of your AJP connector in Tomcat's server.xml
+worker.nodetemplate.connection_pool_timeout=60
+
+#This attribute sets the maximal AJP packet size in Bytes. The maximum value is 65536.
+#8192 is defualt value
+worker.nodetemplate.max_packet_size=8192
+
+worker.nodetemplate.fail_on_status=-404,-500,503
+#The recover time is the time in seconds the load balancer will not try to use a worker, after it went into error state. Only after this time has passed,
+#a worker in error state will be marked as in recovering, so that it will be tried for new requests.
+worker.nodetemplate.recover_time=30
+
+<% @workers.each do | worker_name, worker | %>
+<% if @instance_name == worker['apache_instance'] %>
+
+# Use an if clause here to match the apache instance name and write out the worker configurations for that apache inst
+# The worker attributes also have a tag for apache, like they have to tomcat host and jvm.
+
+#worker01 inherits the nodetemplate directives
+#worker.<%= worker_name %>.template=nodetemplate
+worker.<%= worker_name %>.reference=worker.nodetemplate
+#Host name or IP address of the backend Tomcat instance <<<%= worker_name.split('worker')[1] %>>
+worker.<%= worker_name %>.host=<%=worker['host']%>
+#AJP Port number of the remote Tomcat instance<<<%= worker_name.split('worker')[1] %>> listening for defined protocol requests
+worker.<%= worker_name %>.port=<%=worker['port']%>
+worker.<%= worker_name %>.route=<%=worker['dc_identifier']%>:<%=worker['jvm_route_svr']%>:<%=worker['instance'] %>
+<% end %>
+<% end %>
+
+# Load-balancing behaviour
+worker.loadbalancer.type=lb
+#A comma separated list of workers that the load balancer need to manage.
+<% workers=[] %>
+<% @workers.each do | worker_name, worker | %>
+	<% if @instance_name == worker['apache_instance'] %>
+	  <% workers.push(worker_name) %>
+	<% end %>
+<% end %>
+
+
+worker.loadbalancer.balance_workers=<%=workers.join(',')%>
+#Specifies whether requests with SESSION ID's should be routed back to the same Tomcat worker.
+worker.loadbalancer.sticky_session=True
+
+#The name of the cookie that contains the routing identifier needed for session stickyness.
+#The routing identifier is everything after a "." character in the value of the cookie.
+worker.loadbalancer.session_cookie=<%=@instance_name%>JSESSIONID
+
+# Status worker for managing load balancer
+worker.status.type=status

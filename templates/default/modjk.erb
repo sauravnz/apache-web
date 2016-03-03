@@ -1,0 +1,54 @@
+# Load mod_jk module
+LoadModule jk_module modules/mod_jk.so
+
+# Where to find workers.properties
+JkWorkersFile conf/workers-<%=@instance_name%>.properties
+
+# Where to put jk logs
+JkLogFile "|<%=@base_dir%>/apache/httpd/bin/rotatelogs <%=@logs%>/apache/httpd/<%=@instance_name%>_jk.log.%Y-%m-%d-%H_%M_%S <%=@rotate_logs_size%>"
+
+#Set the jk log level [debug/error/info]
+JkLogLevel <%=@modjk_log_level%>
+
+#Select the timestamp log format
+JkLogStampFormat  "[%a %b %d %H:%M:%S %Y]"
+
+# JkRequestLogFormat
+JkRequestLogFormat "%H %m %p %v %w %s %B"
+
+# Mount your applications
+
+<% @context_path_name.each do |contextPath| %>
+<%="JkMount /#{contextPath}/* loadbalancer"%>
+<% end %>
+
+# Add shared memory.
+# This directive is present with 1.2.10 and
+# later versions of mod_jk, and is needed for
+# for load balancing to work properly
+JkShmFile logs/<%=@instance_name%>jk.shm
+
+# Add jkstatus for managing runtime data
+<Location /jkstatus/>
+    JkMount status
+    Order deny,allow
+    Deny from all
+    Allow from 127.0.0.1
+</Location>
+
+<VirtualHost _default_:<%=@ssl_port%>>
+DocumentRoot "<%=@base_dir%>/apache/httpd/htdocs"
+ErrorLog "|<%=@base_dir%>/apache/httpd/bin/rotatelogs <%=@logs%>/apache/httpd/<%=@instance_name%>_<%=@ssl_port%>_error_log.%Y-%m-%d-%H_%M_%S <%=@rotate_logs_size%>"
+TransferLog "|<%=@base_dir%>/apache/httpd/bin/rotatelogs <%=@logs%>/apache/httpd/<%=@instance_name%>_<%=@ssl_port%>_access_log.%Y-%m-%d-%H_%M_%S <%=@rotate_logs_size%>"
+
+
+SSLEngine on
+SSLCertificateFile "<%=@base_dir%>/apache/httpd/certificates/<%=@instance_name%>.crt"
+SSLCertificateKeyFile "<%=@base_dir%>/apache/httpd/certificates/<%=@instance_name%>.key"
+CustomLog "|<%=@base_dir%>/apache/httpd/bin/rotatelogs <%=@logs%>/apache/httpd/<%=@instance_name%>_<%=@ssl_port%>_ssl_request_log.%Y-%m-%d-%H_%M_%S <%=@rotate_logs_size%>" \
+          "%t %h %{SSL_PROTOCOL}x %{SSL_CIPHER}x \"%r\" %b"
+<% @context_path_name.each do |contextPath| %>
+<%="JkMount /#{contextPath}/* loadbalancer"%>
+<% end %>
+JkMountCopy On
+</VirtualHost>

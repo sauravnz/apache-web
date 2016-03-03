@@ -1,0 +1,31 @@
+# Put this after the other LoadModule directives
+LoadModule proxy_module modules/mod_proxy.so
+LoadModule proxy_http_module modules/mod_proxy_http.so
+
+# Put this in the main section of your configuration (or desired virtual host, if using Apache virtual hosts)
+ProxyRequests Off
+ProxyPreserveHost On
+
+<Proxy *>
+    Require all granted
+</Proxy>
+
+ProxyPass /<%= node['apache']['context_path'] %> http://localhost:8080/<%= node['apache']['context_path'] %>/
+ProxyPassReverse /<%= node['apache']['context_path'] %> http://localhost:8080/<%= node['apache']['context_path'] %>/
+<Location /<%= node['apache']['context_path'] %>>
+    Require all granted
+</Location>
+
+<VirtualHost _default_:<%=@ssl_port%>>
+DocumentRoot "<%=@base_dir%>/apache/httpd/htdocs"
+ErrorLog "|<%=@base_dir%>/apache/httpd/bin/rotatelogs -n <%=@rotate_logs_count%> <%=@logs%>/apache/httpd/<%=@instance_name%>_<%=@ssl_port%>_error_log <%=@rotate_logs_size%>"
+CustomLog "|<%=@base_dir%>/apache/httpd/bin/rotatelogs -n <%=@rotate_logs_count%> <%=@logs%>/apache/httpd/<%=@instance_name%>_<%=@ssl_port%>_access_log <%=@rotate_logs_size%>" combined
+
+SSLEngine on
+SSLCertificateFile "<%=@base_dir%>/apache/httpd/certificates/<%=@instance_name%>.crt"
+SSLCertificateKeyFile "<%=@base_dir%>/apache/httpd/certificates/<%=@instance_name%>.key"
+CustomLog "|<%=@base_dir%>/apache/httpd/bin/rotatelogs -n <%=@rotate_logs_count%> <%=@logs%>/apache/httpd/<%=@instance_name%>_<%=@ssl_port%>_ssl_request_log <%=@rotate_logs_size%>" \
+          "%t %h %{SSL_PROTOCOL}x %{SSL_CIPHER}x \"%r\" %b"
+ProxyPass / http://localhost/
+ProxyPassReverse / http://localhost/
+</VirtualHost>
